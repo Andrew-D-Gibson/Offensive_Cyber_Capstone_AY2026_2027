@@ -1,0 +1,5 @@
+# Core scaffold has no dependencies beyond the standard library.
+# Install these only if you use the corresponding backend:
+
+requests>=2.31       # for OllamaClient
+anthropic>=0.40       # for AnthropicClient
