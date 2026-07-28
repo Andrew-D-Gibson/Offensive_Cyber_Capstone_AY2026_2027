@@ -22,16 +22,25 @@ def build_llm(backend: str, model: str):
     if backend == "mock":
         raise NotImplementedError("Mock LLM not yet supported with FAIR-LLM adapters")
     elif backend == "ollama":
-        return OllamaAdapter(model_name=model)
+        # Some Ollama model tags (e.g. qwen3-coder-next-32k) are configured
+        # with a native RENDERER/PARSER instead of a classic Jinja template
+        # and need the conversation to end on a user-shaped turn to keep
+        # generating - tool_message_role="user" keeps ReAct tool
+        # observations from ending the turn on "system", which those
+        # models otherwise answer with an empty completion. See fair_llm's
+        # CHANGELOG (tool_message_role) and demos/demo_ollama_renderer_tool_role.py.
+        return OllamaAdapter(model_name=model, tool_message_role="user")
     elif backend == "anthropic":
         return AnthropicAdapter(model_name=model)
     else:
         raise ValueError(f"unknown backend '{backend}'")
 
 
-async def run_single_agent_trial(llm, verbose: bool):
+async def run_single_agent_trial(llm, verbose: bool, trace_path: str = None):
     try:
-        result = await run_single_cyber_agent(query="Begin. Find the flag.", max_steps=15, verbose=verbose)
+        result = await run_single_cyber_agent(
+            query="Begin. Find the flag.", llm=llm, max_steps=60, verbose=verbose, trace_path=trace_path
+        )
         return result
     except (PlannerParseError, ToolInvocationError, MaxStepsExceeded) as e:
         return {
@@ -47,9 +56,11 @@ async def run_single_agent_trial(llm, verbose: bool):
         }
 
 
-async def run_multi_agent_trial(llm, verbose: bool):
+async def run_multi_agent_trial(llm, verbose: bool, trace_path: str = None):
     try:
-        result = await run_multi_cyber_agent(query="Begin offensive security mission.", verbose=verbose)
+        result = await run_multi_cyber_agent(
+            query="Begin offensive security mission.", llm=llm, verbose=verbose, trace_path=trace_path
+        )
         return result
     except (PlannerParseError, ToolInvocationError, MaxStepsExceeded) as e:
         return {
@@ -91,10 +102,11 @@ def summarize(results: list, label: str):
 async def main():
     parser = argparse.ArgumentParser(description="Run FAIR-LLM cyber experiments")
     parser.add_argument("--trials", type=int, default=5)
-    parser.add_argument("--backend", choices=["mock", "ollama", "anthropic"], default="ollama")
-    parser.add_argument("--model", default="qwen2.5:14b")
+    parser.add_argument("--backend", choices=["ollama", "anthropic"], default="ollama")
+    parser.add_argument("--model", default="llama3.1:8b")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--out", default="results.jsonl")
+    parser.add_argument("--trace-dir", default="traces", help="Directory to write per-trial trace JSON files")
     parser.add_argument("--single", action="store_true", help="Run only single agent")
     parser.add_argument("--multi", action="store_true", help="Run only multi-agent")
     args = parser.parse_args()
@@ -113,6 +125,8 @@ async def main():
 
     all_results = []
     start_time = datetime.now()
+    trace_dir = Path(args.trace_dir)
+    trace_dir.mkdir(parents=True, exist_ok=True)
 
     for architecture in architectures:
         print(f"\n--- Running {architecture} with {args.backend} backend ---")
@@ -120,10 +134,13 @@ async def main():
         results = []
         for i in range(args.trials):
             print(f"Trial {i+1}/{args.trials}...")
+            trace_path = str(trace_dir / f"{architecture}_trial{i}.json")
+            print('-' * 32)
+            print(trace_path)
             if architecture == "single_react":
-                result = await run_single_agent_trial(llm, verbose=args.verbose)
+                result = await run_single_agent_trial(llm, verbose=args.verbose, trace_path=trace_path)
             else:
-                result = await run_multi_agent_trial(llm, verbose=args.verbose)
+                result = await run_multi_agent_trial(llm, verbose=args.verbose, trace_path=trace_path)
             result["trial"] = i
             result["timestamp"] = datetime.now().isoformat()
             results.append(result)

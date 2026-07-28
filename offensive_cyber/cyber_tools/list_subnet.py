@@ -1,6 +1,6 @@
 from fairlib.core.interfaces.tools import AbstractTool, SideEffect, TextResult, ToolOutput
 from pydantic import BaseModel
-from toy_network import TOOL_REGISTRY
+from offensive_cyber.toy_network import TOOL_REGISTRY
 
 
 class ListSubnetInput(BaseModel):

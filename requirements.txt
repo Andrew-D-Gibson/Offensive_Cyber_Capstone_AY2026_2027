@@ -1,5 +1,6 @@
-# Core scaffold has no dependencies beyond the standard library.
-# Install these only if you use the corresponding backend:
+# Agents run through fair_llm (fairlib) — see fair_llm/requirements.txt
+# for its full dependency set. This file covers the extra, optional
+# backend clients fairlib treats as opt-in:
 
-requests>=2.31       # for OllamaClient
-anthropic>=0.40       # for AnthropicClient
+requests>=2.31        # for fairlib's OllamaAdapter
+anthropic>=0.40        # for fairlib's AnthropicAdapter

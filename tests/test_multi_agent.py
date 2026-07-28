@@ -37,11 +37,12 @@ async def test_worker_creation():
 async def test_manager_creation():
     """Test that manager agent can be created."""
     try:
-        manager = await create_multi_agent_system()
-        
+        manager, workers = await create_multi_agent_system()
+
         print("✓ Manager agent created")
         print(f"  Type: {type(manager).__name__}")
-        
+        print(f"  Workers: {', '.join(workers.keys())}")
+
         return True
     except Exception as e:
         print(f"✗ Manager creation failed: {e}")

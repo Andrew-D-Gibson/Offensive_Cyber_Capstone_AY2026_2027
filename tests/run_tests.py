@@ -8,6 +8,9 @@ Comprehensive test runner for FAIR-LLM cyber experiment suite.
 import asyncio
 import subprocess
 import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def print_section(title):
@@ -16,12 +19,13 @@ def print_section(title):
     print("="*60)
 
 
-async def run_test(file_path, description):
-    """Run a test file and report results."""
+async def run_test(module_name, description):
+    """Run a test module (as `python -m ...` from the repo root) and report results."""
     print_section(description)
     try:
         result = subprocess.run(
-            [sys.executable, file_path],
+            [sys.executable, "-m", module_name],
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True,
             timeout=30
@@ -47,9 +51,9 @@ async def main():
     print("Running comprehensive test suite...")
     
     tests = [
-        ("test_cyber_tools.py", "Cyber Tools"),
-        ("test_single_agent.py", "Single Agent"),
-        ("test_multi_agent.py", "Multi-Agent"),
+        ("tests.test_cyber_tools", "Cyber Tools"),
+        ("tests.test_single_agent", "Single Agent"),
+        ("tests.test_multi_agent", "Multi-Agent"),
     ]
     
     results = {}

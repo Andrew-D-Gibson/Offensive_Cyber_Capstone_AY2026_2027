@@ -1,1 +1,3 @@
-fairllm/
+__pycache__/
+*.pyc
+fair_llm/

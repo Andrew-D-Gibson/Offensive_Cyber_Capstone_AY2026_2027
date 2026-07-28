@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from fairlib.core.interfaces.tools import AbstractTool, SideEffect, TextResult, ToolOutput
-from toy_network import TOOL_REGISTRY
+from offensive_cyber.toy_network import TOOL_REGISTRY
 
 
 class ServiceBannerInput(BaseModel):
