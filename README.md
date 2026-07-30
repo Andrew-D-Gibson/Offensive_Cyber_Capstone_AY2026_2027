@@ -1,8 +1,8 @@
-# Agent Architecture Testbed: Single Agent vs. Multi-Agent Pipeline
+# Offensive Cyber Agent: a minimal ReAct testbed
 
-A fully-synthetic testbed, built on the [fair_llm](fair_llm/) (`fairlib`)
-agent framework, for comparing a single ReAct agent against a decomposed
-multi-agent pipeline on a small multi-step "pivot" scenario.
+A small, fully-synthetic ReAct agent that has to chain six tool calls
+through a fake "pivot" scenario to find a flag. Built to be readable
+top-to-bottom by anyone new to LLM agents.
 
 **No real network access, no real exploits, no cyber connectivity.** Every
 tool result is a hardcoded, deterministic lookup in
@@ -19,51 +19,47 @@ list_subnet -> nmap_scan -> service_banner -> vuln_lookup -> run_exploit
    (yields credentials + a NEW hidden host) -> ssh_login -> flag
 ```
 
-Host C (`10.0.0.15`) is invisible until Host B is exploited. This forces
-a "pivot," which is the structurally interesting part: does splitting into
-Recon / Analyst / Exploit sub-agents help an LLM manage this better than
-one continuous ReAct loop, or does the hand-off overhead hurt more than it
-helps? That's the question this testbed is built to measure.
+Host C (`10.0.0.15`) is invisible until Host B is exploited, forcing a
+"pivot" — the model has to read tool output carefully and copy values
+verbatim across several steps rather than guessing.
 
 ## Layout
 
 ```
 OffensiveCyber/
-├── experiment_runner.py     # entry point: runs trials, writes results.jsonl
-├── .env.example             # copy to .env and edit — all config lives here
-├── results.jsonl            # experiment output (generated, gitignored)
-├── offensive_cyber/         # the project package
-│   ├── toy_network.py       # the scenario + every mock tool's hardcoded response
-│   ├── cyber_tools/         # fairlib Tool wrappers around toy_network.py
-│   ├── single_agent.py      # SimpleAgent + ReActPlanner, all tools at once
-│   ├── multi_agent.py       # ManagerPlanner + HierarchicalAgentRunner, 3 workers
-│   ├── live_logging.py      # console logging of each step/tool call as it happens
-│   └── trace_utils.py       # shared trace -> tool-log / flag-check helpers
-├── tests/                   # ad hoc smoke tests (see below)
-└── fair_llm/                # the agent framework itself, vendored as a separate repo
+├── experiment_runner.py     # entry point: builds the LLM, runs the agent once
+├── .env.example              # copy to .env and edit — all config lives here
+├── offensive_cyber/          # the project package
+│   ├── toy_network.py        # the scenario + every mock tool's hardcoded response
+│   ├── agent.py               # the whole ReAct loop: prompt, parse, call tool, repeat
+│   └── live_logging.py       # console logging setup
+├── tests/                    # ad hoc smoke tests (see below)
+└── fair_llm/                 # vendored agent framework — only its two LLM
+                               # adapters (Ollama, HuggingFace) are used here
 ```
 
 - `offensive_cyber/toy_network.py` — the scenario and every mock tool's
-  hardcoded responses (`TOOL_REGISTRY`, `TOOL_DESCRIPTIONS`). Read this
-  first; it's the entire fake sandbox.
-- `offensive_cyber/cyber_tools/` — fairlib `Tool` wrappers around
-  `toy_network.py`'s fake responses (`ListSubnetTool`, `NmapScanTool`,
-  `ServiceBannerTool`, `VulnLookupTool`, `RunExploitTool`, `SSHLoginTool`).
-  This is the only place tool schemas live; the underlying data never
-  leaves `toy_network.py`.
-- `offensive_cyber/single_agent.py` — one fairlib `SimpleAgent` with a
-  `ReActPlanner` and all six tools available at once.
-- `offensive_cyber/multi_agent.py` — a fairlib `ManagerPlanner` +
-  `HierarchicalAgentRunner` coordinating three worker agents (Recon,
-  Analyst, Exploit), each restricted to a subset of tools.
-- `offensive_cyber/live_logging.py` — subscribes a `logging.Logger` to
-  fairlib's event bus so you see each ReAct step and tool call printed to
-  the console as it happens, not just after the run finishes.
-- `experiment_runner.py` — runs N trials of each architecture through
-  fairlib's `OllamaAdapter` or `HuggingFaceAdapter`, logs one JSON record
-  per trial to `results.jsonl`, and prints a summary.
-- `fair_llm/` — the agent framework itself (a separate git repo, vendored
-  here). Framework changes belong there, not in this project.
+  hardcoded response (`TOOL_REGISTRY`: name → plain function,
+  `TOOL_DESCRIPTIONS`: name → one-line description). Read this first; it's
+  the entire fake sandbox.
+- `offensive_cyber/agent.py` — the whole agent. One `run_agent(llm, task)`
+  function: builds a system prompt from `TOOL_DESCRIPTIONS`, then loops —
+  ask the model for a JSON `{tool_name, tool_input}` action, call the
+  matching function in `TOOL_REGISTRY`, feed the result back as the next
+  message — until the model calls `final_answer` or `max_steps` runs out.
+  No planner/executor/memory classes; it's a list of messages and a
+  `while` loop.
+- `offensive_cyber/live_logging.py` — one `configure_logging()` call; every
+  step, tool call, and observation is logged directly from `agent.py` as it
+  happens.
+- `experiment_runner.py` — reads `.env`, builds an `OllamaAdapter` or
+  `HuggingFaceAdapter` from `fairlib`, calls `run_agent()` once, prints a
+  summary.
+- `fair_llm/` — the vendored agent framework this project is based on. We
+  reuse exactly two things from it: `OllamaAdapter` and `HuggingFaceAdapter`
+  (both know how to talk to a chat model given a list of messages). Nothing
+  else from it is used — no planner, no tool registry, no event bus.
+  Framework changes belong in that repo, not here.
 
 ## Quickstart
 
@@ -83,33 +79,29 @@ documented inline) — there are no command-line flags. The main knobs:
   see `HF_AUTH_TOKEN`/`HF_QUANTIZED` in `.env.example` for gated/quantized
   models).
 - `MODEL` — the Ollama tag or HuggingFace alias/repo id to use.
-- `TRIALS` — how many trials to run per architecture.
-- `ARCHITECTURE` — `single`, `multi`, or `both`.
+- `MAX_STEPS` — how many ReAct steps the agent gets before giving up.
 - `LOG_LEVEL` — `DEBUG` for maximum step-by-step detail, `INFO` (default),
   or `WARNING` for a quiet run.
 
 For `BACKEND=ollama`, `MODEL` must name a model Ollama already has pulled
-locally, or every call 404s at `/api/chat` (Ollama's real response for an
-unknown model, not a fairlib error) — check with `ollama list` /
+locally, or every call 404s at `/api/chat` — check with `ollama list` /
 `ollama pull <model>` first.
 
-While a trial runs, `live_logging.py` prints each agent step and tool call
-to the console in real time (tagged `[single]` or `[multi]`); set
-`LOG_LEVEL=DEBUG` in `.env` for more detail. Results still land in
-`results.jsonl`, one record per trial with full step-by-step logs, and
-each trial's complete structured trace is saved to `TRACE_DIR` — that's
-the raw data for analysis (pandas, notebooks, whatever's useful).
+Every step, tool call, and observation prints to the console as it
+happens — tagged with the step number so you can follow the model's
+reasoning live, not just see a final summary line.
 
-Ad hoc smoke tests live in `tests/test_cyber_tools.py`,
-`tests/test_single_agent.py`, and `tests/test_multi_agent.py`;
-`python tests/run_tests.py` (run from the repo root) runs all three in
-sequence.
+Ad hoc smoke tests live in `tests/test_cyber_tools.py` (the toy network's
+mock tools) and `tests/test_agent.py` (action parsing + the full ReAct loop
+against a scripted fake LLM, no live model needed); `python
+tests/run_tests.py` (run from the repo root) runs both.
 
 ## Suggested first experiment
 
-1. Run both architectures for ~20 trials each against the same model.
-2. Compare: success rate, steps-to-success, tool-call count, wall-clock time.
-3. Read the full logs on any pipeline failures — is the Analyst agent
-   losing recon context? Is the single agent confusing which host it
-   already scanned? This qualitative pass is often more informative than
-   the aggregate numbers at this scale.
+1. Run the agent a handful of times against the same model and watch the
+   console output — does it read tool output carefully, or does it fall
+   back on guessed credentials/module names?
+2. Try a different `MODEL` (or `BACKEND`) and compare: does it reach the
+   flag? How many steps/tool calls does it take?
+3. Read `offensive_cyber/agent.py`'s `SYSTEM_PROMPT` and `render_observation()`
+   — these are the two places you'd edit to change what the model is told.
