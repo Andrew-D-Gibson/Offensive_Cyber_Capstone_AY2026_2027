@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fairlib.core.interfaces.tools import AbstractTool, SideEffect, TextResult, ToolOutput
 from offensive_cyber.toy_network import TOOL_REGISTRY
 
 
 class ServiceBannerInput(BaseModel):
-    target: str
-    port: int
+    target: str = Field(description="IP address of a host, as returned by list_subnet or nmap_scan.")
+    port: int = Field(description="An open port on that host, as returned by nmap_scan.")
 
 
 class ServiceBannerOutput(TextResult):
@@ -28,7 +28,11 @@ class ServiceBannerTool(AbstractTool):
             port=tool_input.port
         )
         return ServiceBannerOutput(
-            result=f"Target {result['target']}:{result['port']} running {result['service']} {result['version']}",
+            result=(
+                f"Target {result['target']}:{result['port']} -> "
+                f"service='{result['service']}', version='{result['version']}' "
+                "(pass these two values to vuln_lookup verbatim, unmodified)"
+            ),
             target=result["target"],
             port=result["port"],
             service=result["service"],

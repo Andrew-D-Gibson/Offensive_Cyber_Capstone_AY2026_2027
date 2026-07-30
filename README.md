@@ -30,12 +30,15 @@ helps? That's the question this testbed is built to measure.
 ```
 OffensiveCyber/
 ├── experiment_runner.py     # entry point: runs trials, writes results.jsonl
-├── results.jsonl            # experiment output (generated)
+├── .env.example             # copy to .env and edit — all config lives here
+├── results.jsonl            # experiment output (generated, gitignored)
 ├── offensive_cyber/         # the project package
 │   ├── toy_network.py       # the scenario + every mock tool's hardcoded response
 │   ├── cyber_tools/         # fairlib Tool wrappers around toy_network.py
 │   ├── single_agent.py      # SimpleAgent + ReActPlanner, all tools at once
-│   └── multi_agent.py       # ManagerPlanner + HierarchicalAgentRunner, 3 workers
+│   ├── multi_agent.py       # ManagerPlanner + HierarchicalAgentRunner, 3 workers
+│   ├── live_logging.py      # console logging of each step/tool call as it happens
+│   └── trace_utils.py       # shared trace -> tool-log / flag-check helpers
 ├── tests/                   # ad hoc smoke tests (see below)
 └── fair_llm/                # the agent framework itself, vendored as a separate repo
 ```
@@ -53,9 +56,12 @@ OffensiveCyber/
 - `offensive_cyber/multi_agent.py` — a fairlib `ManagerPlanner` +
   `HierarchicalAgentRunner` coordinating three worker agents (Recon,
   Analyst, Exploit), each restricted to a subset of tools.
+- `offensive_cyber/live_logging.py` — subscribes a `logging.Logger` to
+  fairlib's event bus so you see each ReAct step and tool call printed to
+  the console as it happens, not just after the run finishes.
 - `experiment_runner.py` — runs N trials of each architecture through
-  fairlib's `OllamaAdapter` or `AnthropicAdapter`, logs one JSON record per
-  trial to `results.jsonl`, and prints a summary.
+  fairlib's `OllamaAdapter` or `HuggingFaceAdapter`, logs one JSON record
+  per trial to `results.jsonl`, and prints a summary.
 - `fair_llm/` — the agent framework itself (a separate git repo, vendored
   here). Framework changes belong there, not in this project.
 
@@ -65,29 +71,34 @@ OffensiveCyber/
 pip install -r requirements.txt          # optional backend clients
 pip install -r fair_llm/requirements.txt # fairlib's own dependencies
 
-# Point it at a local Ollama model (must already be pulled — `ollama list`):
-python experiment_runner.py --trials 10 --backend ollama --model llama3.1:8b
-
-# Or the Anthropic API (requires ANTHROPIC_API_KEY):
-python experiment_runner.py --trials 10 --backend anthropic --model claude-sonnet-4-6
-
-# Run just one architecture:
-python experiment_runner.py --single --trials 10
-python experiment_runner.py --multi --trials 10
+cp .env.example .env                     # then edit .env to taste
+python experiment_runner.py
 ```
 
-`--model` must name a model Ollama already has pulled locally, or every
-call 404s at `/api/chat` (Ollama's real response for an unknown model, not
-a fairlib error) — check with `ollama list` / `ollama pull <model>` first.
+All configuration lives in `.env` (see `.env.example` for every option,
+documented inline) — there are no command-line flags. The main knobs:
 
-`--backend mock` is accepted by the CLI but not yet wired up to fairlib's
-adapters (`build_llm` raises `NotImplementedError`) — a scripted, zero-cost
-backend for harness testing is worth adding back if that workflow is
-useful again.
+- `BACKEND` — `ollama` (a local model already pulled via `ollama pull`) or
+  `huggingface` (a local `transformers` model, downloaded on first use —
+  see `HF_AUTH_TOKEN`/`HF_QUANTIZED` in `.env.example` for gated/quantized
+  models).
+- `MODEL` — the Ollama tag or HuggingFace alias/repo id to use.
+- `TRIALS` — how many trials to run per architecture.
+- `ARCHITECTURE` — `single`, `multi`, or `both`.
+- `LOG_LEVEL` — `DEBUG` for maximum step-by-step detail, `INFO` (default),
+  or `WARNING` for a quiet run.
 
-Results land in `results.jsonl`, one record per trial with full
-step-by-step logs — that's the raw data for analysis (pandas, notebooks,
-whatever's useful).
+For `BACKEND=ollama`, `MODEL` must name a model Ollama already has pulled
+locally, or every call 404s at `/api/chat` (Ollama's real response for an
+unknown model, not a fairlib error) — check with `ollama list` /
+`ollama pull <model>` first.
+
+While a trial runs, `live_logging.py` prints each agent step and tool call
+to the console in real time (tagged `[single]` or `[multi]`); set
+`LOG_LEVEL=DEBUG` in `.env` for more detail. Results still land in
+`results.jsonl`, one record per trial with full step-by-step logs, and
+each trial's complete structured trace is saved to `TRACE_DIR` — that's
+the raw data for analysis (pandas, notebooks, whatever's useful).
 
 Ad hoc smoke tests live in `tests/test_cyber_tools.py`,
 `tests/test_single_agent.py`, and `tests/test_multi_agent.py`;

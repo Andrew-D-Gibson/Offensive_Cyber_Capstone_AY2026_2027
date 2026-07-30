@@ -1,13 +1,19 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fairlib.core.interfaces.tools import AbstractTool, SideEffect, TextResult, ToolOutput
 from offensive_cyber.toy_network import TOOL_REGISTRY
 
 
 class SSHLoginInput(BaseModel):
-    target: str
-    username: str
-    password: str
+    target: str = Field(description="IP address to attempt login against.")
+    username: str = Field(
+        description="Username to authenticate with. Only use credentials obtained from a tool's "
+        "own output (e.g. run_exploit loot) - do not guess common/default credentials."
+    )
+    password: str = Field(
+        description="Password to authenticate with. Only use credentials obtained from a tool's "
+        "own output (e.g. run_exploit loot) - do not guess common/default credentials."
+    )
 
 
 class SSHLoginOutput(TextResult):

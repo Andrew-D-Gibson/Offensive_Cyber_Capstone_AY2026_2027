@@ -1,12 +1,15 @@
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fairlib.core.interfaces.tools import AbstractTool, SideEffect, TextResult, ToolOutput
 from offensive_cyber.toy_network import TOOL_REGISTRY
 
 
 class NmapScanInput(BaseModel):
-    target: str
-    ports: Optional[List[int]] = None
+    target: str = Field(description="IP address of a host, as returned by list_subnet.")
+    ports: Optional[List[int]] = Field(
+        default=None,
+        description="Ignored by this tool - it always reports every open port on the host.",
+    )
 
 
 class NmapScanOutput(TextResult):
@@ -16,7 +19,7 @@ class NmapScanOutput(TextResult):
 
 class NmapScanTool(AbstractTool):
     name = "nmap_scan"
-    description = "Perform port scan on target host to discover open ports. Optional ports parameter to scan specific ports."
+    description = "Perform a full port scan on a target host, reporting every open port."
     input_schema = NmapScanInput
     output_schema = NmapScanOutput
     side_effect = SideEffect.EXTERNAL

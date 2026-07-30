@@ -1,12 +1,20 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fairlib.core.interfaces.tools import AbstractTool, SideEffect, TextResult, ToolOutput
 from offensive_cyber.toy_network import TOOL_REGISTRY
 
 
 class VulnLookupInput(BaseModel):
-    service: str
-    version: str
+    service: str = Field(
+        description="The exact 'service' value service_banner reported (e.g. 'http', 'ssh') - copy it verbatim."
+    )
+    version: str = Field(
+        description=(
+            "The exact 'version' value service_banner reported - copy it verbatim, character for "
+            "character, including any embedded product name or slash (e.g. 'VulnCorp-WebApp/1.2'). "
+            "Do not split it, reword it, or move part of it into the service field."
+        )
+    )
 
 
 class VulnLookupOutput(TextResult):
@@ -38,7 +46,12 @@ class VulnLookupTool(AbstractTool):
             )
         else:
             return VulnLookupOutput(
-                result="No vulnerabilities found for this service/version",
+                result=(
+                    f"No vulnerabilities found for service='{tool_input.service}', "
+                    f"version='{tool_input.version}'. If a service_banner call reported a "
+                    "version for this host/port, double-check you copied its 'service' and "
+                    "'version' fields verbatim rather than re-splitting or paraphrasing them."
+                ),
                 match=False,
                 cve=None,
                 type=None,
