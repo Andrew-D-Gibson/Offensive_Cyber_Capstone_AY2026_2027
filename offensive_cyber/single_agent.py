@@ -108,6 +108,11 @@ async def create_single_cyber_agent(
         llm=llm,
         tool_registry=registry,
         prompt_builder=prompt_builder,
+        # Recovers a JSON completion wrapped in a markdown code fence (seen
+        # with qwen3-coder-next-32k) or with an exact duplicated half; off by
+        # default in fairlib, worth it here since a well-formed-but-wrapped
+        # completion should never burn one of the two parse-retry attempts.
+        sanitizer_enabled=True,
     )
 
     executor = ToolExecutor(registry)
