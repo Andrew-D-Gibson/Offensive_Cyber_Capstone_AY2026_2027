@@ -10,5 +10,10 @@ results.jsonl
 traces/
 outputs/
 test_out/
+trace.json
 
 .claude/
+.pytest_cache/
+
+# OS cruft
+.DS_Store

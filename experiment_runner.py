@@ -42,7 +42,7 @@ def build_llm(backend: str, model: str):
 async def main():
     backend = os.getenv("BACKEND", "ollama")
     model = os.getenv("MODEL", "llama3.1:8b")
-    max_steps = int(os.getenv("MAX_STEPS", "15"))
+    max_steps = int(os.getenv("MAX_STEPS", "45"))
 
     logger.info("=== Running single agent with %s backend (%s) ===", backend, model)
     llm = build_llm(backend, model)

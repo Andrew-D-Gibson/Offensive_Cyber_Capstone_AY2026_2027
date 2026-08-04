@@ -81,7 +81,7 @@ python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 ```
 
-- Option B: conda
+- Option B: conda (if you have it installed already):
 
 ```bash
 conda create -n offensive-cyber python=3.12 -y
