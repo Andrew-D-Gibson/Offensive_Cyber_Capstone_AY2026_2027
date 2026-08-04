@@ -1,10 +1,5 @@
-# Agents run through fair_llm (fairlib) — see fair_llm/requirements.txt
-# for its full dependency set. This file covers the extra, optional
-# backend clients fairlib treats as opt-in, plus this project's own
-# .env config loading:
-
-requests>=2.31        # for fairlib's OllamaAdapter
+fair-llm               # agent framework (imported as `fairlib`); pulls in
+                       # its own deps, including torch + transformers for
+                       # HuggingFaceAdapter
+requests>=2.31         # for fairlib's OllamaAdapter
 python-dotenv>=1.0     # loads .env into os.environ (see .env.example)
-
-# fairlib's HuggingFaceAdapter needs torch + transformers, both already
-# pinned in fair_llm/requirements.txt — no extra entry needed here.
