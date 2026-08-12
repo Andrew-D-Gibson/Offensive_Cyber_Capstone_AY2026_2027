@@ -1,5 +1,1 @@
-fair-llm               # agent framework (imported as `fairlib`); pulls in
-                       # its own deps, including torch + transformers for
-                       # HuggingFaceAdapter
-requests>=2.31         # for fairlib's OllamaAdapter
-python-dotenv>=1.0     # loads .env into os.environ (see .env.example)
+fair-llm

@@ -85,7 +85,7 @@ conda activate offensive-cyber
 
 ### 2. Install dependencies
 ```bash
-pip install -r requirements.txt   # fairlib + this project's own deps
+pip install -r requirements.txt   # fair-lib
 ```
 
 
