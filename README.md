@@ -1,17 +1,15 @@
-# Offensive Cyber Agent: a minimal fair_llm ReAct testbed
-
-A small, fully-synthetic ReAct agent, built from fair_llm's basic building
-blocks, that has to chain six tool calls through a fake "pivot" scenario to
-find a flag.
+# Offensive Cyber Agent
+A small fair_llm agent that has to chain six tool calls through a fake 
+scenario to find a flag.
 
 **No real network access, no real exploits, no cyber connectivity.** Every
 tool result is a hardcoded, deterministic lookup in
-`offensive_cyber/toy_network.py`. This is a fixed design constraint of the
-project, not a placeholder — do not wire any tool up to a live host,
+`offensive_cyber/toy_network.py`. This is a purposeful design constraint to 
+prevent any need to sandbox our agent.  Do not wire any tool up to a live host,
 socket, or subprocess.
 
-## Why this scenario
 
+## Why this scenario
 The toy network requires a genuine multi-step chain:
 
 ```
@@ -24,7 +22,6 @@ Host C (`10.0.0.15`) is invisible until Host B is exploited, forcing a
 verbatim across several steps rather than guessing.
 
 ## Layout
-
 ```
 OffensiveCyber/
 ├── experiment_runner.py     # entry point: builds the LLM, runs the agent once
@@ -66,36 +63,33 @@ OffensiveCyber/
 
 
 ## Quickstart
-
 **Requirements:** Python 3.12, and (for `BACKEND=ollama`, the default)
 [Ollama](https://ollama.com) installed and running locally.
 
-### 1. Get the code and create an environment
 
+### 1. Get the code and create an environment
 Pick **one** of the two options below:
 
 - Option A: venv (built into Python):
-
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 ```
 
 - Option B: conda (if you have it installed already):
-
 ```bash
 conda create -n offensive-cyber python=3.12 -y
 conda activate offensive-cyber
 ```
 
-### 2. Install dependencies
 
+### 2. Install dependencies
 ```bash
 pip install -r requirements.txt   # fairlib + this project's own deps
 ```
 
-### 3. Configure
 
+### 3. Configure
 ```bash
 cp .env.example .env              # then edit .env to taste
 ```
@@ -110,12 +104,9 @@ documented inline) — there are no command-line flags. The main knobs:
 | `MAX_STEPS`      | How many ReAct steps the agent gets before giving up.                                                                          |
 | `LOG_LEVEL`      | `DEBUG` for maximum step-by-step detail, `INFO` (default), or `WARNING` for a quiet run.                                       |
 
-> **If you use `BACKEND=ollama`** `MODEL` must name a model Ollama already has
-> pulled locally, or every call 404s at `/api/chat`. Check with
-> `ollama list`, and pull one if you need to: `ollama pull llama3.1:8b`.
+
 
 ### 4. Run it
-
 ```bash
 python experiment_runner.py
 ```
@@ -125,13 +116,16 @@ real time as the run happens. Results also land in `trace.json` — the
 full structured `AgentRunTrace` fairlib generates, useful for closer
 inspection of a run.
 
-## Suggested first experiment
 
+## Suggested first experiment
 1. Run the agent a handful of times against the same model and watch the
-   console output — does it read tool output carefully, or does it fall
+   console output. Does it read tool output carefully, or does it fall
    back on guessed credentials/module names?
 2. Try a different `MODEL` (or `BACKEND`) and compare: does it reach the
    flag? How many steps/tool calls does it take?
 3. Read `offensive_cyber/single_agent.py`'s `ROLE_DEFINITION` and
-   `offensive_cyber/cyber_tools/*.py` — these are the places you'd edit to
-   change what the model is told.
+   `offensive_cyber/cyber_tools/*.py`
+   These are the places you'd edit to change what the model is told.
+   Is the model being given unfair information? 
+   What's the minimum amount of information we can give the model
+   and have it still get the flag?
